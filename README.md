@@ -297,3 +297,231 @@
 2. **Hasil Display Filter Wireshark & Ringkasan Paket**:
    ![Filter DNS dan ICMP Wireshark](images/soal-6/filter-dns-icmp.png)
    *Penerapan display filter `dns || icmp` (berwarna hijau) berhasil menyaring seluruh paket terkait. Berdasarkan status bar Wireshark, dari total 66 paket yang tertangkap, terdapat **58 paket (84.8%)** yang lolos filter berprotokol DNS dan ICMP.*
+
+---
+
+## Soal 7
+
+### Soal
+> Chisa memutuskan mendirikan FTP Server pada node miliknya dengan shared folder di `/var/wired/data`. Terapkan kebijakan akses: user `alice` (hak akses read & write), user `mika` (dibatasi read-only), dan user `eiri` (dibatasi tanpa izin akses / blacklist). Buktikan konfigurasi dengan membuat file `signal_alice.txt` dari user alice, dan buktikan penolakan akses saat user eiri mencoba login.
+
+### Langkah Pengerjaan
+
+1. **Instalasi dan Konfigurasi FTP Server pada Node Chisa**:
+   - Memasang daemon FTP ringan dan aman `vsftpd` pada node Chisa (`192.212.2.2`).
+   - Membuat shared folder `/var/wired/data` dengan perizinan penuh (`chmod -R 777 /var/wired/data`).
+   - Mendaftarkan akun Linux `alice`, `mika`, dan `eiri` dengan direktori basis `/var/wired/data`.
+   - Mengatur kebijakan hak akses:
+     - User **Alice** diberikan izin baca dan tulis (`write_enable=YES`) melalui direktori konfigurasi per-user `/etc/vsftpd/user_conf/alice`.
+     - User **Mika** dibatasi hanya dapat membaca atau mengunduh saja (`write_enable=NO`) melalui `/etc/vsftpd/user_conf/mika`.
+     - User **Eiri** dimasukkan ke dalam daftar hitam `/etc/vsftpd/user_list` dengan mengaktifkan `userlist_deny=YES` sehingga langsung ditolak oleh server saat mencoba login.
+   - Mengaktifkan `seccomp_sandbox=NO` agar vsFTPd berjalan stabil di lingkungan container Alpine, serta mengonfigurasi rentang port pasif (`pasv_min_port=30000`, `pasv_max_port=30005`).
+   - Skrip konfigurasi otomasi disimpan pada `/root/setup_ftp_chisa.sh`:
+     ```bash
+     apk update && apk add --no-cache vsftpd
+     mkdir -p /var/wired/data /etc/vsftpd/user_conf
+
+     adduser -D -h /var/wired/data -s /bin/sh alice 2>/dev/null || true
+     echo "alice:wired123" | chpasswd
+
+     adduser -D -h /var/wired/data -s /bin/sh mika 2>/dev/null || true
+     echo "mika:wired123" | chpasswd
+
+     adduser -D -h /var/wired/data -s /bin/sh eiri 2>/dev/null || true
+     echo "eiri:wired123" | chpasswd
+
+     chmod -R 777 /var/wired/data
+
+     cat << 'USER_EOF' > /etc/vsftpd/user_conf/alice
+     write_enable=YES
+     local_root=/var/wired/data
+     USER_EOF
+
+     cat << 'USER_EOF' > /etc/vsftpd/user_conf/mika
+     write_enable=NO
+     local_root=/var/wired/data
+     USER_EOF
+
+     echo "eiri" > /etc/vsftpd/user_list
+
+     cat << 'CONF_EOF' > /etc/vsftpd/vsftpd.conf
+     listen=YES
+     listen_ipv6=NO
+     anonymous_enable=NO
+     local_enable=YES
+     write_enable=YES
+     local_umask=022
+     dirmessage_enable=YES
+     use_localtime=YES
+     xferlog_enable=YES
+     connect_from_port_20=YES
+     local_root=/var/wired/data
+     chroot_local_user=YES
+     allow_writeable_chroot=YES
+     seccomp_sandbox=NO
+     user_config_dir=/etc/vsftpd/user_conf
+     userlist_enable=YES
+     userlist_file=/etc/vsftpd/user_list
+     userlist_deny=YES
+     pasv_enable=YES
+     pasv_min_port=30000
+     pasv_max_port=30005
+     CONF_EOF
+
+     killall vsftpd 2>/dev/null || true
+     /usr/sbin/vsftpd /etc/vsftpd/vsftpd.conf &
+     ```
+
+2. **Pengujian Hak Akses Read & Write oleh User Alice**:
+   - Menyiapkan berkas `/root/signal_alice.txt` pada node Alice.
+   - Melakukan koneksi FTP ke server Chisa (`192.212.2.2`) dan mengunggah berkas menggunakan script `/root/test_ftp_alice.sh`:
+     ```bash
+     apk update && apk add --no-cache lftp
+
+     echo "Signal from Alice to The Wired - Connection Verified." > /root/signal_alice.txt
+
+     lftp -u alice,wired123 192.212.2.2 << 'FTP_EOF'
+     set ftp:ssl-allow no
+     put /root/signal_alice.txt
+     ls
+     bye
+     FTP_EOF
+     ```
+
+3. **Pengujian Pembatasan Akses (Blacklist) pada User Eiri**:
+   - Mencoba melakukan koneksi dan autentikasi sebagai user `eiri` menuju FTP server Chisa dari node Eiri dengan script `/root/test_ftp_eiri.sh`:
+     ```bash
+     apk update && apk add --no-cache lftp
+
+     lftp -u eiri,wired123 192.212.2.2 << 'FTP_EOF'
+     set ftp:ssl-allow no
+     ls
+     bye
+     FTP_EOF
+     ```
+
+### Bukti dan Hasil
+
+1. **Status Layanan vsFTPd pada Node Chisa**:
+   ![Layanan vsFTPd Chisa](images/soal-7/service-vsftpd-chisa.png)
+   *Proses `vsftpd` berjalan normal pada latar belakang dan membuka listening socket pada port 21.*
+
+2. **Bukti Upload Berkas `signal_alice.txt` oleh Alice**:
+   ![Upload Berkas Alice](images/soal-7/upload-alice.png)
+   *User Alice berhasil melakukan autentikasi dan mengunggah berkas `signal_alice.txt` ke shared folder server Chisa, terbukti dari keluaran `ls` yang menampilkan berkas tersebut.*
+
+3. **Verifikasi Keberadaan Berkas di Node Chisa**:
+   ![Verifikasi Berkas Chisa](images/soal-7/verifikasi-file-chisa.png)
+   *Pemeriksaan lokal pada node Chisa melalui `ls -la /var/wired/data` dan `cat` membuktikan bahwa `signal_alice.txt` tersimpan dengan benar di dalam shared folder.*
+
+4. **Bukti Penolakan Akses (Blacklist) pada User Eiri**:
+   ![Penolakan Login Eiri](images/soal-7/blacklist-eiri.png)
+   *Saat user Eiri mencoba melakukan login ke server FTP Chisa, server langsung merespons dengan `530 Permission denied`, membuktikan bahwa mekanisme blacklist berhasil menolak akses login.*
+
+---
+
+## Soal 8
+
+### Soal
+> Kelompok rahasia Knights perlu mengirimkan dokumen laporan intelijen ke FTP Server Chisa. Lakukan koneksi FTP client dari node Knights ke FTP Server Chisa menggunakan akun alice. Upload file berikut (`knights_report.txt`). Analisis sesi Wireshark dan sebutkan: perintah FTP untuk upload (STOR), kode status sukses server (226), dan port data TCP yang dinegosiasikan pada mode PASV.
+
+### Langkah Pengerjaan
+
+1. **Persiapan Berkas Laporan Intelijen pada Node Knights**:
+   Menyiapkan berkas `/root/knights_report.txt` pada node Knights yang memuat laporan pemantauan The Wired (*LEVEL 7 — EYES ONLY*).
+
+2. **Packet Sniffing dengan Wireshark**:
+   Mengaktifkan penangkapan paket (*live capture*) pada antarmuka link antara `Knights` (`eth0`) dan `Switch3` melalui menu **Start capture** di GNS3.
+
+3. **Eksekusi Pengunggahan Berkas dari Node Knights**:
+   Melakukan transfer berkas menuju server FTP Chisa (`192.212.2.2`) dengan kredensial akun `alice` dalam mode pasif (`PASV`) menggunakan script `/root/upload_knights.sh`:
+   ```bash
+   apk update && apk add --no-cache lftp
+
+   cat << 'FILE_EOF' > /root/knights_report.txt
+   ==================================================
+     KNIGHTS OF THE EASTERN CALCULUS — STATUS REPORT
+     Protocol 7 Surveillance Network
+     Classification: LEVEL 7 — EYES ONLY
+   ==================================================
+
+   Date: [CLASSIFIED]
+   Agent: Knights Unit Alpha
+   Node: Switch 3 — Subnet 10.<PREFIX>.3.0/24
+
+   ---
+
+   SUBJECT: Network Reconnaissance Report
+
+   The Wired has been successfully infiltrated through
+   Protocol 7 channels. Current observations:
+
+   1. Router "Lain" has been identified as the central
+      gateway node connecting all three subnet segments.
+
+   2. Switch 1 (10.<PREFIX>.1.0/24) hosts Alice and Mika.
+      Both nodes show standard traffic patterns.
+
+   3. Switch 2 (10.<PREFIX>.2.0/24) hosts Chisa alone.
+      Isolated subnet — minimal cross-traffic observed.
+
+   4. Switch 3 (10.<PREFIX>.3.0/24) — our operational base.
+      Knights and Eiri coexist on this segment.
+
+   RECOMMENDATION:
+   Continue monitoring FTP and Telnet sessions for
+   plaintext credential exposure. SSH tunnels remain
+   impenetrable without keylog access.
+
+   --- END OF REPORT ---
+   Knights of the Eastern Calculus
+   "Let's all love Lain."
+   FILE_EOF
+
+   lftp -u alice,wired123 192.212.2.2 << 'FTP_EOF'
+   set ftp:ssl-allow no
+   set ftp:passive-mode true
+   set net:max-retries 1
+   put /root/knights_report.txt
+   ls
+   bye
+   FTP_EOF
+   ```
+
+4. **Analisis Protokol pada Wireshark**:
+   Menerapkan display filter `ftp || ftp-data` untuk mengamati perintah kontrol dan saluran data yang terbentuk.
+
+### Bukti dan Hasil
+
+1. **Eksekusi Pengunggahan di Node Knights**:
+   ![Terminal Upload Knights](images/soal-8/terminal-upload-knights.png)
+   *Proses eksekusi `/root/upload_knights.sh` pada node Knights berhasil mengunggah berkas `knights_report.txt` (1111 bytes) ke FTP Server Chisa.*
+
+2. **Aliran Sesi Komunikasi FTP pada Wireshark (`ftp || ftp-data`)**:
+   ![Wireshark FTP Stream](images/soal-8/wireshark-ftp-stream.png)
+   *Seluruh siklus transmisi terekam dengan jelas, mulai dari autentikasi akun `alice`, negosiasi mode pasif (`PASV`), pengiriman berkas melalui data channel, hingga pemutusan koneksi (`QUIT`).*
+
+3. **Analisis Komponen Sesuai Permintaan Soal**:
+
+   * **Perintah FTP untuk Upload (`STOR`)**:
+     ![Paket STOR](images/soal-8/wireshark-packet-stor.png)
+     *Tercatat pada paket **No. 5486**, client Knights mengirimkan perintah:*
+     $$\text{Request: STOR knights\_report.txt}$$
+     *Perintah ini menginstruksikan server untuk menyimpan aliran data yang dikirimkan ke dalam berkas `knights_report.txt`.*
+
+   * **Kode Status Sukses Server (`226`)**:
+     ![Paket 226](images/soal-8/wireshark-packet-226.png)
+     *Tercatat pada paket **No. 5493**, server Chisa merespons dengan kode status:*
+     $$\text{Response: 226 Transfer complete.}$$
+     *Menandakan bahwa transfer muatan berkas sebesar 1111 bytes melalui saluran data telah berhasil diterima dan ditutup secara sempurna oleh server.*
+
+   * **Port Data TCP yang Dinegosiasikan pada Mode PASV**:
+     ![Paket PASV](images/soal-8/wireshark-packet-pasv.png)
+     *Tercatat pada paket **No. 5501** (dan No. 5481), client Knights mengirimkan instruksi `Request: PASV` untuk meminta server membuka data channel dalam mode pasif.*
+
+     ![Paket 227](images/soal-8/wireshark-packet-227.png)
+     *Server Chisa membalas permintaan tersebut dengan respons kode status 227 (Paket No. 5502):*
+     $$\text{Response: 227 Entering Passive Mode (192,212,2,2,117,48)}$$
+     *Alamat IP data server adalah `192.212.2.2` dan nomor port TCP data pasif dihitung dari dua oktet terakhir:*
+     $$\text{Port TCP Data} = (117 \times 256) + 48 = 29952 + 48 = \mathbf{30000}$$
+     *(Pada sesi pengunggahan berkas di paket No. 5482 sebelumnya, negosiasi menghasilkan `(192,212,2,2,117,52)` dengan port TCP $(117 \times 256) + 52 = \mathbf{30004}$. Kedua port ini berada tepat di dalam rentang port pasif yang telah dikonfigurasikan pada vsFTPd Chisa yaitu `30000-30005`).*

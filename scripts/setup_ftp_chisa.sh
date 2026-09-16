@@ -1,8 +1,5 @@
-#!/bin/sh
-# Setup FTP Server di Chisa (Soal 7)
+apk update && apk add --no-cache vsftpd
 mkdir -p /var/wired/data /etc/vsftpd/user_conf
-chmod 777 /var/wired/data
-
 adduser -D -h /var/wired/data -s /bin/sh alice 2>/dev/null || true
 echo "alice:wired123" | chpasswd
 
@@ -12,15 +9,21 @@ echo "mika:wired123" | chpasswd
 adduser -D -h /var/wired/data -s /bin/sh eiri 2>/dev/null || true
 echo "eiri:wired123" | chpasswd
 
-echo "write_enable=YES" > /etc/vsftpd/user_conf/alice
-echo "local_root=/var/wired/data" >> /etc/vsftpd/user_conf/alice
+chmod -R 777 /var/wired/data
 
-echo "write_enable=NO" > /etc/vsftpd/user_conf/mika
-echo "local_root=/var/wired/data" >> /etc/vsftpd/user_conf/mika
+cat << 'USER_EOF' > /etc/vsftpd/user_conf/alice
+write_enable=YES
+local_root=/var/wired/data
+USER_EOF
+
+cat << 'USER_EOF' > /etc/vsftpd/user_conf/mika
+write_enable=NO
+local_root=/var/wired/data
+USER_EOF
 
 echo "eiri" > /etc/vsftpd/user_list
 
-cat << 'EOF' > /etc/vsftpd/vsftpd.conf
+cat << 'CONF_EOF' > /etc/vsftpd/vsftpd.conf
 listen=YES
 listen_ipv6=NO
 anonymous_enable=NO
@@ -42,9 +45,7 @@ userlist_deny=YES
 pasv_enable=YES
 pasv_min_port=30000
 pasv_max_port=30005
-EOF
+CONF_EOF
 
 killall vsftpd 2>/dev/null || true
 /usr/sbin/vsftpd /etc/vsftpd/vsftpd.conf &
-echo "vsFTPd successfully configured and started!"
-
