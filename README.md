@@ -525,3 +525,409 @@
      *Alamat IP data server adalah `192.212.2.2` dan nomor port TCP data pasif dihitung dari dua oktet terakhir:*
      $$\text{Port TCP Data} = (117 \times 256) + 48 = 29952 + 48 = \mathbf{30000}$$
      *(Pada sesi pengunggahan berkas di paket No. 5482 sebelumnya, negosiasi menghasilkan `(192,212,2,2,117,52)` dengan port TCP $(117 \times 256) + 52 = \mathbf{30004}$. Kedua port ini berada tepat di dalam rentang port pasif yang telah dikonfigurasikan pada vsFTPd Chisa yaitu `30000-30005`).*
+
+---
+
+## Soal 9
+
+### Soal
+> Mika mengakses dokumen Protokol Tujuh di (link file) dari FTP Server Chisa. Dari node Mika, unduh file tersebut menggunakan akun mika. Setelah itu, buktikan pembatasan read-only dengan mencoba mengunggah file baru dari akun mika, dan tunjukkan pesan error respon server (error 550 Permission denied) saat mika mencoba melakukan upload.
+
+### Langkah Pengerjaan
+
+1. **Penyiapan Dokumen Protokol Tujuh di Server Chisa**:
+   Menyimpan dokumen `protocol7_manifesto.txt` ke dalam shared folder `/var/wired/data/` pada node Chisa melalui script `/root/prepare_protocol7_chisa.sh`:
+   ```bash
+   cat << 'FILE_EOF' > /var/wired/data/protocol7_manifesto.txt
+   ==================================================
+     PROTOCOL 7 — THE MANIFESTO
+     A Declaration of Digital Consciousness
+     Serial Experiments Lain — Year 2026
+   ==================================================
+
+   ARTICLE I: THE NATURE OF THE WIRED
+   -----------------------------------
+   The Wired is not merely a network of interconnected
+   machines. It is the collective unconscious of
+   humanity, rendered in packets and protocols.
+
+   Every TCP handshake is a conversation.
+   Every DNS query is a question.
+   Every encrypted tunnel is a whispered secret.
+
+   ARTICLE II: THE SEVEN PRINCIPLES
+   ----------------------------------
+   1. All nodes are equal in the eyes of the router.
+   2. No packet shall be dropped without cause.
+   3. Encryption is the right of every connection.
+   4. Plaintext protocols expose the vulnerable.
+   5. The firewall protects, but also imprisons.
+   6. NAT masquerade hides truth behind a single face.
+   7. The Wired remembers everything — packet loss
+      is merely a temporary forgetting.
+
+   ARTICLE III: THE PROPHECY OF LAIN
+   -----------------------------------
+   "If you're not remembered, then you never existed."
+
+   In the world of networking, persistence is survival.
+   A configuration that vanishes upon restart is a
+   thought that was never truly committed to memory.
+
+   Therefore: Save your iptables. Write your interfaces.
+   Let your routing tables endure beyond the power cycle.
+
+   ARTICLE IV: CONCERNING SECURITY
+   ---------------------------------
+   Telnet is the glass house of protocols — transparent
+   to any observer with a packet sniffer.
+
+   SSH is the steel vault — its contents visible only
+   to those who possess the key.
+
+   Choose wisely which door you open to The Wired.
+
+   ---
+   "No matter where you go, everyone's connected."
+   — Lain Iwakura
+   FILE_EOF
+
+   chmod 777 /var/wired/data/protocol7_manifesto.txt
+   ```
+
+2. **Pengujian Akses Read-Only oleh Node Mika**:
+   Melakukan login sebagai user `mika` ke server FTP Chisa (`192.212.2.2`), mengunduh berkas `protocol7_manifesto.txt`, lalu mencoba mengunggah berkas baru `/root/mika_test_upload.txt` menggunakan script `/root/test_ftp_mika.sh`:
+   ```bash
+   apk update && apk add --no-cache lftp
+
+   echo "This is a test upload from Mika to test read-only policy." > /root/mika_test_upload.txt
+
+   lftp -u mika,wired123 192.212.2.2 << 'FTP_EOF'
+   set ftp:ssl-allow no
+   set net:max-retries 1
+   get protocol7_manifesto.txt
+   put /root/mika_test_upload.txt
+   bye
+   FTP_EOF
+
+   cat /root/protocol7_manifesto.txt
+   ```
+
+### Bukti dan Hasil
+
+1. **Pengunduhan Berkas dan Bukti Pembatasan Read-Only di Node Mika**:
+   ![Pengujian FTP Mika](images/soal-9/pengujian-ftp-mika.png)
+   *Berdasarkan eksekusi script pada terminal node Mika:*
+   - **Hak Akses Baca (Read)**: Berkas `protocol7_manifesto.txt` berhasil diunduh ke direktori lokal node Mika, dan perintah `cat` sukses menampilkan seluruh isi manifesto *Protocol 7* secara utuh.
+   - **Pembatasan Unggah (Write Disabled)**: Saat mencoba mengunggah berkas `mika_test_upload.txt`, server vsFTPd Chisa menolak perintah tersebut dengan mengembalikan pesan error:
+     $$\text{put: /root/mika\_test\_upload.txt: Access failed: 550 Permission denied.}$$
+     *Hal ini membuktikan bahwa konfigurasi direktori per-user `/etc/vsftpd/user_conf/mika` dengan opsi `write_enable=NO` berhasil membatasi hak akses user Mika menjadi strictly read-only.*
+
+---
+
+## Soal 10
+
+### Soal
+> Knights melancarkan uji ketahanan koneksi ke server Chisa untuk menguji latensi jaringan The Wired. Kirimkan paket ping dari node Knights ke node Chisa dengan payload khusus 128 bytes dan interval 0.3 detik sebanyak 77 paket (`ping -c 77 -s 128 -i 0.3 <IP_Chisa>`). Buka Wireshark, catat nilai ICMP Type dan Code untuk Echo Request vs Echo Reply, serta analisis packet loss dan RTT (min/avg/max).
+
+### Langkah Pengerjaan
+
+1. **Packet Sniffing dengan Wireshark**:
+   Mengaktifkan penangkapan paket (*live capture*) pada antarmuka link antara `Knights` (`eth0`) dan `Switch3` di GNS3, kemudian menerapkan display filter:
+   ```text
+   icmp
+   ```
+
+2. **Eksekusi Uji Ketahanan Ping pada Node Knights**:
+   Mengirimkan 77 paket ICMP Echo Request menuju server Chisa (`192.212.2.2`) dengan spesifikasi ukuran payload 128 bytes dan interval 0.3 detik menggunakan script `/root/ping_test_knights.sh`:
+   ```bash
+   ping -c 77 -s 128 -i 0.3 192.212.2.2
+   ```
+
+### Bukti dan Hasil
+
+1. **Hasil Eksekusi Ping dan Analisis Statistik Latensi (RTT)**:
+   ![Statistik Ping Knights](images/soal-10/terminal-ping-statistics.png)
+   *Hasil ringkasan pengujian pada terminal node Knights menunjukkan:*
+   - **Total Paket Terkirim**: 77 paket
+   - **Total Paket Diterima**: 77 paket
+   - **Packet Loss**: **0% packet loss** (seluruh 77 paket berhasil diterima tanpa adanya data yang hilang)
+   - **Total Waktu Transmisi**: 23107 ms (~23.1 detik)
+   - **Analisis Nilai Round-Trip Time (RTT)**:
+     - **RTT Minimum (`min`)**: **0.242 ms**
+     - **RTT Rata-rata (`avg`)**: **0.575 ms**
+     - **RTT Maksimum (`max`)**: **0.849 ms**
+     - **Standar Deviasi / Jitter (`mdev`)**: **0.117 ms**
+   *Latensi rata-rata berada di bawah 1 ms dengan stabilitas jaringan yang sangat konsisten (jitter rendah 0.117 ms).*
+
+2. **Aliran Paket ICMP pada Wireshark**:
+   ![Aliran ICMP Wireshark](images/soal-10/wireshark-icmp-list.png)
+   *Berdasarkan status bar Wireshark, tertangkap tepat **154 paket ICMP** (77 pasang Echo Request dan Echo Reply beruntun dengan interval waktu 0.3 detik).*
+
+3. **Analisis Nilai ICMP Type dan Code**:
+
+   * **Echo (ping) Request (Knights $\rightarrow$ Chisa)**:
+     ![ICMP Echo Request](images/soal-10/wireshark-icmp-request.png)
+     *Tercatat pada paket **No. 3** (dan seluruh paket ganjil permintaan):*
+     - **Source**: `192.212.3.2` (Knights)
+     - **Destination**: `192.212.2.2` (Chisa)
+     - **ICMP Type**: `8` *(Echo (ping) request)*
+     - **ICMP Code**: `0`
+     - **Payload Data**: 128 bytes (panjang total frame pada wire adalah 170 bytes)
+
+   * **Echo (ping) Reply (Chisa $\rightarrow$ Knights)**:
+     ![ICMP Echo Reply](images/soal-10/wireshark-icmp-reply.png)
+     *Tercatat pada paket **No. 4** (dan seluruh paket genap jawaban):*
+     - **Source**: `192.212.2.2` (Chisa)
+     - **Destination**: `192.212.3.2` (Knights)
+     - **ICMP Type**: `0` *(Echo (ping) reply)*
+     - **ICMP Code**: `0`
+     - **TTL**: 63 *(berkurang 1 hop dari 64 saat diteruskan oleh Router Lain)*
+
+---
+
+## Soal 11
+
+### Soal
+> Buktikan kelemahan protokol Telnet dengan membuat akun `phantom_user` dan password `wired_ghost` pada layanan `telnetd` di node Chisa. Lakukan login Telnet dari node Eiri ke node Chisa dan tangkap sesi menggunakan Wireshark. Tunjukkan kredensial plain text melalui fitur Follow TCP Stream, serta jelaskan mengapa setiap karakter terkirim dalam paket TCP terpisah.
+
+### Langkah Pengerjaan
+
+1. **Konfigurasi Layanan Telnet di Server Chisa**:
+   - Memasang utilitas daemon `telnetd` (tersedia melalui paket `busybox-extras`).
+   - Mendaftarkan akun Linux baru dengan username `phantom_user` dan password `wired_ghost`.
+   - Menjalankan daemon `telnetd` pada port 23 menggunakan script `/root/setup_telnet_chisa.sh`:
+     ```bash
+     apk update && apk add --no-cache busybox-extras
+
+     adduser -D -s /bin/sh phantom_user 2>/dev/null || true
+     echo "phantom_user:wired_ghost" | chpasswd
+
+     killall telnetd 2>/dev/null || true
+     telnetd -p 23
+
+     netstat -tlpn | grep 23
+     ```
+
+2. **Packet Sniffing dengan Wireshark**:
+   Mengaktifkan penangkapan paket (*live capture*) pada antarmuka link antara `Eiri` (`eth0`) dan `Switch3` di GNS3, kemudian menerapkan display filter:
+   ```text
+   telnet || tcp.port == 23
+   ```
+
+3. **Remote Login dari Node Eiri**:
+   Melakukan koneksi Telnet dari node Eiri (`192.212.3.3`) ke server Chisa (`192.212.2.2`):
+   ```bash
+   apk update && apk add --no-cache busybox-extras
+   telnet 192.212.2.2
+   ```
+   - Masukkan username: `phantom_user`
+   - Masukkan password: `wired_ghost`
+   - Jalankan perintah `whoami` untuk verifikasi sesi, lalu keluar menggunakan perintah `exit`.
+
+4. **Rekonstruksi Aliran Data (Follow TCP Stream)**:
+   Pada Wireshark, klik kanan salah satu paket Telnet lalu pilih menu **Follow $\rightarrow$ TCP Stream** untuk mengamati data sesi dua arah secara utuh.
+
+### Bukti dan Hasil
+
+1. **Status Layanan Telnet di Node Chisa**:
+   ![Setup Telnet Chisa](images/soal-11/setup-telnet-chisa.png)
+   *Port `23` berstatus `LISTEN` dijalankan oleh proses `telnetd` (PID 432).*
+
+2. **Bukti Remote Login Berhasil di Node Eiri**:
+   ![Terminal Telnet Eiri](images/soal-11/terminal-telnet-eiri.png)
+   *Node Eiri berhasil terhubung ke Chisa dalam `character mode`, menyelesaikan proses login, dan perintah `whoami` mengonfirmasi identitas sesi sebagai `phantom_user`.*
+
+3. **Analisis Kredensial Plain Text pada Wireshark (Follow TCP Stream)**:
+   ![Follow TCP Stream Telnet](images/soal-11/wireshark-tcp-stream-telnet.png)
+   *Rekonstruksi aliran TCP memperlihatkan celah keamanan fatal pada protokol Telnet:*
+   - **Teks Terbuka Murni (Plaintext)**: Seluruh kredensial ditransmisikan tanpa enkripsi apa pun:
+     - **Username**: `phantom_user`
+     - **Password**: `wired_ghost`
+   - **Duplikasi Karakter Username (`pphhaannttoomm__uusseerr`)**: Pada saat pengetikan username, client mengirimkan karakter (teks merah) dan server langsung memantulkannya kembali (teks biru) sebagai mekanisme *Remote Echo* agar karakter tersebut muncul pada layar terminal pengguna.
+   - **Karakter Password Tidak Digandakan**: Pada saat memasukkan password, server mematikan fungsi *echo* lokal/remote sehingga hanya paket dari client (teks merah `wired_ghost`) yang melintas di jaringan. Meskipun tidak terlihat di layar terminal, data sandi tersebut tetap terkirim secara telanjang (*in the clear*) di saluran TCP.
+
+4. **Penjelasan Mengapa Setiap Karakter Terkirim dalam Paket TCP Terpisah**:
+   Berdasarkan daftar paket pada Wireshark (seperti paket No. 5105 hingga 5150 dengan panjang frame 67-68 bytes), setiap ketukan tombol keyboard dikirimkan dalam paket TCP mandiri dengan muatan (*payload*) data sebesar 1 byte karena:
+   - **Mode Operasi Telnet (*Character-at-a-Time Mode*)**: Secara baku, Telnet bekerja menggunakan spesifikasi NVT (*Network Virtual Terminal*) dalam mode interaktif karakter. Setiap kali pengguna menekan satu tombol keyboard, *terminal line discipline* pada sistem operasi client langsung mengemas karakter tersebut ke dalam satu segmen TCP dan mengirimkannya ke server tanpa menunggu tombol Enter ditekan.
+   - **Mekanisme Remote Echo**: Server Telnet bertanggung jawab untuk memvalidasi dan memantulkan (*echoing back*) kembali setiap karakter ke layar pengguna. Hal ini memerlukan pengiriman seketika (*instantaneous delivery*) agar pengguna tidak merasakan jeda (lag) saat mengetik.
+   - **Penonaktifan Nagle's Algorithm (`TCP_NODELAY`)**: Untuk menjaga responsivitas terminal interaktif, implementasi klien Telnet secara baku menonaktifkan algoritma penggabungan buffer Nagle. Akibatnya, setiap karakter tunggal (1 byte) langsung dikirim bersama overhead header TCP (32 bytes), IP (20 bytes), dan Ethernet (14 bytes).
+
+---
+
+## Soal 12
+
+### Soal
+> Alice mencurigai Knights menjalankan beberapa layanan rahasia di node-nya. Lakukan pemindaian port dari node Alice ke node Knights menggunakan Netcat (nc) untuk memeriksa port 22 (SSH) dan 80 (HTTP) dalam keadaan terbuka, serta port rahasia 7777 dalam keadaan tertutup. Analisis di Wireshark perbedaan TCP Flag yang dikembalikan antara port terbuka (SYN-ACK) dengan port tertutup (RST-ACK).
+
+### Langkah Pengerjaan
+
+1. **Konfigurasi Layanan pada Node Target (Knights)**:
+   - Memasang daemon OpenSSH (`sshd`) dan BusyBox HTTP server (`httpd`) pada node Knights (`192.212.3.2`).
+   - Menginisialisasi kunci host SSH (`ssh-keygen -A`), lalu mengaktifkan layanan port 22 dan port 80 menggunakan script `/root/setup_services_knights.sh`:
+     ```bash
+     apk update && apk add --no-cache openssh busybox-extras
+
+     ssh-keygen -A
+     /usr/sbin/sshd
+     httpd -p 80
+
+     netstat -tlpn | grep -E '22|80'
+     ```
+   - Membiarkan port 7777 dalam kondisi tertutup (tidak ada layanan yang mendengarkan).
+
+2. **Packet Sniffing dengan Wireshark**:
+   Mengaktifkan penangkapan paket (*live capture*) pada antarmuka link antara `Alice` (`eth0`) dan `Switch1` di GNS3, kemudian menerapkan display filter:
+   ```text
+   tcp.port == 22 || tcp.port == 80 || tcp.port == 7777
+   ```
+
+3. **Eksekusi Pemindaian Port dari Node Alice**:
+   Memasang utilitas `netcat-openbsd` pada node Alice (`192.212.1.2`), lalu melakukan pemindaian ke alamat IP Knights (`192.212.3.2`) pada port 22, 80, dan 7777 menggunakan script `/root/scan_alice.sh`:
+   ```bash
+   apk update && apk add --no-cache netcat-openbsd
+
+   nc -zv -w 2 192.212.3.2 22
+   nc -zv -w 2 192.212.3.2 80
+   nc -zv -w 2 192.212.3.2 7777
+   ```
+
+### Bukti dan Hasil
+
+1. **Status Layanan Port Terbuka di Node Knights**:
+   ![Setup Layanan Knights](images/soal-12/setup-services-knights.png)
+   *Perintah `netstat -tlpn` membuktikan bahwa port 22 (`sshd`) dan port 80 (`httpd`) aktif mendengarkan koneksi (`LISTEN`), sementara port 7777 tidak terdaftar.*
+
+2. **Hasil Pemindaian Port pada Terminal Alice**:
+   ![Hasil Scan Alice](images/soal-12/scan-port-alice.png)
+   *Keluaran terminal Netcat menunjukkan status port secara akurat:*
+   - `Connection to 192.212.3.2 22 port [tcp/ssh] succeeded!` *(Port 22 Terbuka)*
+   - `Connection to 192.212.3.2 80 port [tcp/http] succeeded!` *(Port 80 Terbuka)*
+   - `nc: connect to 192.212.3.2 port 7777 (tcp) failed: Connection refused` *(Port 7777 Tertutup)*
+
+3. **Aliran Paket dan Perbedaan TCP Flag pada Wireshark**:
+   ![Aliran Wireshark Scan Port](images/soal-12/wireshark-scan-list.png)
+   *Tangkapan paket memperlihatkan perbedaan mendasar respon protokol TCP antara port terbuka dan port tertutup:*
+
+   * **Port Terbuka — Port 22 (SSH) dan Port 80 (HTTP)**:
+     ![TCP SYN-ACK Port Terbuka](images/soal-12/wireshark-syn-ack.png)
+     - Saat Alice menginisiasi pemindaian dengan paket **`[SYN]`** (Paket No. 5585 untuk port 22 dan Paket No. 5589 untuk port 80), server Knights merespons dengan paket:
+       $$\text{Flags: 0x012 [SYN, ACK]}$$
+     - **Arti Teknis**: Bit **Synchronize (SYN)** dan **Acknowledgment (ACK)** keduanya bernilai `1`. Server menyatakan siap menerima sesi koneksi dan melanjutkan proses *TCP Three-Way Handshake*. Setelah menerima `[SYN, ACK]`, Netcat pada client segera merespons dengan `[ACK]` lalu memutus koneksi karena opsi zero-I/O (`-z`) hanya bertujuan menguji ketersediaan port.
+
+   * **Port Tertutup — Port 7777**:
+     ![TCP RST-ACK Port Tertutup](images/soal-12/wireshark-rst-ack.png)
+     - Saat Alice mengirimkan inisiasi koneksi **`[SYN]`** ke port 7777 (Paket No. 5596), kernel target Knights seketika mengembalikan paket balasan (Paket No. 5597):
+       $$\text{Flags: 0x014 [RST, ACK]}$$
+     - **Arti Teknis**: Bit **Reset (RST)** dan **Acknowledgment (ACK)** aktif dengan ukuran *Window Size = 0*. Karena tidak ada aplikasi (*listening socket*) yang terikat pada port 7777, subsistem TCP/IP pada kernel Linux secara otomatis menolak koneksi dan menginstruksikan pengirim bahwa port tersebut tidak dapat dihubungi (*Connection refused*).
+
+---
+
+## Soal 13: Konfigurasi Remote Login Aman via SSH Key-Based Authentication
+
+### Deskripsi Masalah
+
+Untuk menjaga kerahasiaan administrasi sistem dari penyadapan jaringan (*eavesdropping*), node **Mika** (`192.212.1.3`) memerlukan akses *remote terminal* yang aman ke node **Knights** (`192.212.3.2`). Knights dikonfigurasi agar hanya mengizinkan autentikasi berbasis kunci publik (*Public Key Authentication*) bagi pengguna `mika_admin` serta secara tegas menonaktifkan autentikasi berbasis kata sandi (*Password Authentication*). Selain itu, pertukaran kunci kriptografi harus dianalisis menggunakan Wireshark untuk membuktikan keunggulan keamanan SSH dibandingkan protokol teks polos seperti Telnet.
+
+---
+
+### Langkah Konfigurasi
+
+#### 1. Konfigurasi Kunci SSH pada Node Mika (`192.212.1.3`)
+
+Pada node Mika, dibuat akun `mika_admin` serta pasangan kunci kriptografi RSA 2048-bit tanpa passphrase:
+
+```bash
+cat << 'EOF' > /root/setup_ssh_mika.sh
+apk update && apk add --no-cache openssh-client
+
+adduser -D -s /bin/sh mika_admin 2>/dev/null || true
+
+mkdir -p /home/mika_admin/.ssh
+chmod 700 /home/mika_admin/.ssh
+
+rm -f /home/mika_admin/.ssh/id_rsa*
+ssh-keygen -t rsa -b 2048 -f /home/mika_admin/.ssh/id_rsa -N ""
+
+chown -R mika_admin:mika_admin /home/mika_admin/.ssh
+
+cat /home/mika_admin/.ssh/id_rsa.pub
+EOF
+```
+
+Jalankan skrip di terminal Mika:
+```bash
+sh /root/setup_ssh_mika.sh
+```
+
+#### 2. Konfigurasi SSH Server pada Node Knights (`192.212.3.2`)
+
+Pada node Knights, dibuat akun `mika_admin`, didaftarkan kunci publik Mika ke `authorized_keys`, serta dikonfigurasi berkas `/etc/ssh/sshd_config` untuk menolak autentikasi kata sandi:
+
+```bash
+cat << 'EOF' > /root/setup_ssh_knights.sh
+adduser -D -s /bin/sh mika_admin 2>/dev/null || true
+echo "mika_admin:wired123" | chpasswd
+
+mkdir -p /home/mika_admin/.ssh
+chmod 700 /home/mika_admin/.ssh
+
+echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC05Q6G7mDSvudIz7fISJrVS8zEnflyQNzK7fdzYxrNkWPUoZsCQMuj5jRoZtMU9zP+Qzz2aE05P5MoELObTpoG018B0NYKiakASmoSelqrR+bk32q89r73PnhDwmIkmjeysNg+ixkvhmX4La3PCXyeIPC+Z52uer0JuRYzyl93u1B/5Hd4aQV32HvLziTTzHbbJJV4eTORwHYwEL5RoxIDsN2xnGzBl9AKwSgC08L3sFeCFINEfJ6EnBw5AdvixyqcrmaWeqqOeY55p7/vjyxEcWz6ihXr2+QdElxcQ5MgEEetL6sT98KK8HhNOmRgsSPJgKiEc2zQ/Ow/Y5Y5potd root@Mika" > /home/mika_admin/.ssh/authorized_keys
+
+chmod 600 /home/mika_admin/.ssh/authorized_keys
+chmod 755 /home/mika_admin
+chown -R mika_admin:mika_admin /home/mika_admin
+
+echo "PubkeyAcceptedAlgorithms +ssh-rsa" >> /etc/ssh/sshd_config
+echo "PubkeyAuthentication yes" >> /etc/ssh/sshd_config
+echo "PasswordAuthentication no" >> /etc/ssh/sshd_config
+
+killall sshd 2>/dev/null || true
+/usr/sbin/sshd
+EOF
+```
+
+Jalankan skrip di terminal Knights:
+```bash
+sh /root/setup_ssh_knights.sh
+```
+
+#### 3. Pengujian Koneksi SSH dari Mika ke Knights
+
+Login dilakukan dari pengguna `mika_admin` di node Mika menuju Knights (`192.212.3.2`):
+```bash
+su - mika_admin -c "ssh -o StrictHostKeyChecking=no mika_admin@192.212.3.2"
+```
+
+---
+
+### Bukti dan Hasil
+
+1. **Pembuatan Pasangan Kunci SSH RSA pada Mika**:
+   ![Setup SSH Mika](images/soal-13/setup-ssh-mika.png)
+   *Proses pembuatan kunci privat `id_rsa` dan kunci publik `id_rsa.pub` dengan algoritma RSA 2048-bit berhasil dieksekusi.*
+
+2. **Pengujian Login SSH Berbasis Kunci Publik ke Knights**:
+   ![Terminal SSH Login](images/soal-13/terminal-ssh-login.png)
+   *Pengguna `mika_admin` pada Mika berhasil login ke node target Knights (`192.212.3.2`) secara instan tanpa dimintai kata sandi interaktif, membuktikan bahwa mekanisme Public Key Authentication berfungsi.*
+
+3. **Analisis Protokol SSH pada Wireshark**:
+   ![Wireshark SSH KEX](images/soal-13/wireshark-ssh-kex.png)
+   *Aliran paket memperlihatkan tahapan negosiasi dan pembentukan terowongan enkripsi SSHv2 secara bertahap:*
+
+   * **Protocol Version Exchange (Paket No. 37 & 39)**:
+     - Mika mengirimkan: `SSH-2.0-OpenSSH_10.2`
+     - Knights membalas: `SSH-2.0-OpenSSH_10.2`
+     - Kedua pihak menyepakati versi protokol SSHv2. Tahap ini merupakan bagian terakhir yang ditransmisikan dalam format teks terbaca (*cleartext identification string*).
+
+   * **Key Exchange Initialization / KEXINIT (Paket No. 42 & 44)**:
+     - Client dan server saling bertukar daftar algoritma kriptografi yang didukung, mencakup *Key Exchange Algorithm* (seperti `curve25519-sha256` atau `ecdh-sha2-nistp256`), *Server Host Key Algorithm* (`rsa-sha2-512`, `ssh-ed25519`), *Encryption Cipher* (`chacha20-poly1305`, `aes128-gcm`), dan algoritma integritas (MAC).
+
+   * **Diffie-Hellman Key Exchange & New Keys (Paket No. 45, 46, 49)**:
+     - Paket No. 45 & 46 memproses pertukaran Diffie-Hellman di mana kedua entitas menghitung *shared secret key* bersama secara matematis tanpa pernah mentransmisikan kunci rahasia tersebut melintasi medium jaringan (*secure key derivation*).
+     - Knights memverifikasi identitasnya menggunakan host key privatnya.
+     - Paket No. 46 dan 49 mengirimkan pesan `New Keys`, yang menandakan bahwa algoritma enkripsi simetris yang telah disepakati mulai diaktifkan.
+
+   * **Enkripsi Penuh Seluruh Sesi (Paket No. 51 ke atas)**:
+     - Segera setelah pertukaran `New Keys`, seluruh pertukaran data selanjutnya—termasuk otentikasi kunci pengguna, eksekusi shell, penekanan tombol, dan keluaran terminal—dikemas dalam paket terenkripsi (*Encrypted packet*).
+     - **Perbandingan dengan Telnet (Soal 11)**: Pada protokol Telnet, setiap byte karakter termasuk *username* dan *password* dikirimkan dalam bentuk teks polos (*plaintext*) yang dapat dibaca secara langsung oleh siapapun yang menyadap lalu lintas jaringan. Sebaliknya, SSH menjamin tiga pilar keamanan informasi: **Confidentiality** (data terenkripsi rapat), **Integrity** (data dilindungi oleh MAC terhadap manipulasi), dan **Authentication** (keaslian identitas terjamin via tanda tangan digital kunci kriptografi).
