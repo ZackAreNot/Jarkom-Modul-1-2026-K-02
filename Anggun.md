@@ -19,5 +19,47 @@
 
 ## Soal 15
 
+### Soal
+>Eiri menyusup ke ruang server dan memasang perangkat keyboard USB berbahaya pada node Alice. Buka file capture wired_usb_hid.pcap, identifikasi Vendor ID dan Product ID perangkat USB dari deskriptor USB, alamat nomor device USB, serta pesan rahasia yang berhasil dicuri dari keystroke. Validasi temuan kalian pada socket server:
+(link file) nc [IP_Group] 3402 
+
+### Bukti dan Hasil
+![alt text](image-6.png)
+
+   - Ubah kode menjadi string untuk tau pesan rahasia
+   ![alt text](image-7.png)
+   ![alt text](image-8.png)
+   ![alt text](image-9.png)
+   ![alt text](image-10.png)
+
+   - Disini melihat device addressnya, yang awalnya 0 berubah menjadi 7
+   ![alt text](image-5.png)
+
+   - melihat id
+   ![alt text](image-11.png)
+
+### Langkah Pengerjaan
+1. **Import file**
+2. **Cari berdasarkan yang diminta dalam terminal**
+3. **Decode sebuah kode menjadi sebuah string**
+
+## Soal 16
+
+### Soal
+> Eiri meletakkan file malware di server. Dari file capture wired_ftp_theft.pcap, lakukan analisis lalu lintas FTP untuk mengidentifikasi alamat IP server FTP penyerang, banner software FTP yang digunakan, kredensial login penyerang, serta ukuran (size in bytes) dari file malware knights_payload.exe yang diunduh. Validasi temuan kalian pada socket server:
+	(link file) nc [IP_Group] 3403 
 
 
+### Bukti dan Hasil
+![alt text](image-15.png)
+
+ - Menemukan IP yang mendownload malware dengan tipe data .exe
+ ![alt text](image-12.png)
+ - Menemukan FTP server software banner, user, password, 
+ ![alt text](image-13.png)
+- Menemukan size file
+![alt text](image-14.png)
+
+### Langkah Pengerjaan
+1. **Import file**
+2. **Cari berdasarkan yang diminta dalam terminal**
