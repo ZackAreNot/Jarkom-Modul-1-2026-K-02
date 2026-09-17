@@ -63,3 +63,48 @@
 ### Langkah Pengerjaan
 1. **Import file**
 2. **Cari berdasarkan yang diminta dalam terminal**
+
+## Soal 17
+
+### Soal
+> Alice membuat halaman web di node-nya. Eiri memanfaatkan celah untuk mengunduh payload berbahaya ke sistem Alice. Analisis file capture wired_http_c2.pcap untuk mengidentifikasi nama domain (Host) tempat malware diunduh, alamat IP server penyerang, nama file executable malware yang diunduh, serta kode status HTTP yang dikembalikan. Validasi temuan kalian pada socket server:
+(link file) nc [IP_Group] 3404
+
+
+
+### Bukti dan Hasil
+![alt text](image-18.png)
+
+   - Bukti Host, HTTP Status, File Name
+   ![alt text](image-16.png)
+   - Bukti IP yang menghousting
+   ![alt text](image-17.png)
+
+### Langkah Pengerjaan
+1. **Import file**
+2. **Cari berdasarkan yang diminta dalam terminal**
+3. **Ada packet yang harus di follow -> TCP Stream**
+
+## Soal 18
+
+### Soal
+> Eiri mengubah taktik penyerangan dengan menanamkan file malware menggunakan protokol file sharing SMB. Analisis file capture wired_smb_transfer.pcapng untuk mengidentifikasi nama protokol jaringan yang dieksploitasi, IP pengirim dan penerima, folder tujuan penyimpanan malware pada sistem korban, serta nama file executable malware yang ditransfer. Validasi temuan kalian pada socket server:
+(link file) nc [IP_Group] 3405
+
+### Bukti dan Hasil
+![alt text](image-23.png)
+
+ - Protocol Type to download malware
+ ![alt text](image-19.png)
+ - Host delevering address & Host receiving address
+ ![alt text](image-20.png)
+- Menemukan directory
+
+   ![alt text](image-21.png)
+- Menemukan file name 
+![alt text](image-22.png)
+
+### Langkah Pengerjaan
+1. **Import file**
+2. **Cari berdasarkan yang diminta dalam terminal**
+3. **Ada packet yang harus di follow -> TCP Stream**
