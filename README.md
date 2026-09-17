@@ -931,3 +931,435 @@ su - mika_admin -c "ssh -o StrictHostKeyChecking=no mika_admin@192.212.3.2"
    * **Enkripsi Penuh Seluruh Sesi (Paket No. 51 ke atas)**:
      - Segera setelah pertukaran `New Keys`, seluruh pertukaran data selanjutnya—termasuk otentikasi kunci pengguna, eksekusi shell, penekanan tombol, dan keluaran terminal—dikemas dalam paket terenkripsi (*Encrypted packet*).
      - **Perbandingan dengan Telnet (Soal 11)**: Pada protokol Telnet, setiap byte karakter termasuk *username* dan *password* dikirimkan dalam bentuk teks polos (*plaintext*) yang dapat dibaca secara langsung oleh siapapun yang menyadap lalu lintas jaringan. Sebaliknya, SSH menjamin tiga pilar keamanan informasi: **Confidentiality** (data terenkripsi rapat), **Integrity** (data dilindungi oleh MAC terhadap manipulasi), dan **Authentication** (keaslian identitas terjamin via tanda tangan digital kunci kriptografi).
+
+---
+
+## Soal 14: Analisis Serangan Brute Force Form Login Web via HTTP
+
+### Deskripsi Masalah
+
+Setelah gagal mengakses FTP, Eiri melancarkan serangan brute-force terhadap form login web Alice. Analisis berkas tangkapan paket `wired_bruteforce.pcapng` dilakukan untuk mengidentifikasi alamat IP penyerang, target IP beserta port yang diserang, password user `lain_admin` yang berhasil ditembus, serta web server software dan versi yang dilaporkan pada response header. Validasi temuan kemudian disubmit pada socket server:
+$$\text{nc } [IP\_Group] \text{ 3401}$$
+
+---
+
+### Langkah Pengerjaan & Analisis
+
+1. **Membuka dan Menyaring Berkas Pcap di Wireshark**:
+   - Berkas `wired_bruteforce.pcapng` dibuka pada Wireshark.
+   - Filter display `http` atau `http.request.method == "POST"` diterapkan untuk memusatkan perhatian pada percobaan pengiriman data form login `/login.php`.
+2. **Identifikasi Aktivitas Serangan**:
+   - Terlihat ratusan paket HTTP POST dikirimkan secara masif dan terotomatisasi dengan User-Agent `Fuzz Faster U Fool v2.1.0-dev` (ffuf).
+   - Hampir seluruh request dibalas oleh server dengan status `HTTP/1.1 401 Unauthorized` dan payload `<h1>Error! Invalid credentials.</h1>`.
+3. **Menemukan Kredensial yang Berhasil Ditembus**:
+   - Untuk menemukan percobaan yang berhasil, diterapkan filter `http.response.code == 200`.
+   - Ditemukan satu respons berhasil pada paket nomor 351 (`HTTP/1.1 200 OK`) dengan isi `<h1>Success! Login successful.</h1>` yang merespons paket nomor 350 (`POST /login.php`).
+   - Pada request body paket 350 tertera kredensial:
+     $$\text{username=lain\_admin\&password=wired\_pr0tocol\_7}$$
+4. **Identifikasi Header dan Entitas Jaringan**:
+   - **Alamat IP Penyerang**: `172.26.7.50` (alamat sumber pada request)
+   - **Target IP dan Port**: `172.26.7.100:8080` (alamat tujuan dan port layanan web)
+   - **Web Server Software & Versi**: `Apache/2.4.62` (diperoleh dari header respons `Server: Apache/2.4.62` serta `X-Powered-By: PHP/8.3.14`)
+5. **Validasi pada Socket Server**:
+   Hubungkan terminal ke server validasi:
+   ```bash
+   nc 10.4.89.246 3401
+   ```
+   Masukkan jawaban sesuai parameter yang ditemukan hingga mendapatkan flag.
+
+---
+
+### Bukti dan Hasil
+
+1. **Validasi Socket Server & Flag Soal 14**:
+   ![Validasi Flag Soal 14](images/soal-14/terminal-flag-nc.png)
+   *Hasil interaksi socket server memvalidasi keempat jawaban dengan benar dan memberikan flag:*
+   $$\text{KOMJAR26\{W1r3d\_Brut3\_zUmnRKoYtFnup0nQaG7EVr3Uw\}}$$
+
+2. **Daftar Paket Serangan Brute Force pada Wireshark**:
+   ![Daftar Paket Brute Force](images/soal-14/wireshark-bruteforce-http.png)
+   *Tangkapan Wireshark memperlihatkan rentetan percobaan login yang gagal (`401 Unauthorized`) hingga diakhiri oleh satu respons sukses (`200 OK`) pada paket No. 351.*
+
+3. **Identifikasi Alamat IP Penyerang dan Target**:
+   ![Header IP Penyerang dan Target](images/soal-14/wireshark-ip-header.png)
+   *Header Internet Protocol Version 4 membuktikan pengirim request berada pada IP `172.26.7.50` dan server target pada IP `172.26.7.100`.*
+
+4. **Follow HTTP Stream Percobaan Berhasil**:
+   ![Follow HTTP Stream](images/soal-14/wireshark-http-stream.png)
+   *Aliran HTTP Stream merekonstruksi kredensial yang valid (`username=lain_admin&password=wired_pr0tocol_7`), header server `Apache/2.4.62`, dan pesan konfirmasi `<h1>Success! Login successful.</h1>`.*
+
+---
+
+## Soal 15: Rekonstruksi Keystroke Hardware Malicious USB HID
+
+### Deskripsi Masalah
+
+Eiri menyusup ke ruang server dan memasang perangkat keyboard USB berbahaya pada node Alice. Dari berkas tangkapan paket `wired_usb_hid.pcap`, dilakukan identifikasi Vendor ID dan Product ID perangkat USB dari deskriptor USB, alamat nomor device USB yang dialokasikan, serta pesan rahasia yang berhasil dicuri dari rekaman keystroke hardware. Validasi temuan disubmit pada socket server:
+$$\text{nc } [IP\_Group] \text{ 3402}$$
+
+---
+
+### Langkah Pengerjaan & Analisis
+
+1. **Membuka Berkas Pcap USB di Wireshark**:
+   - Berkas `wired_usb_hid.pcap` dibuka menggunakan Wireshark yang mendukung pembongkaran paket protokol USB (*USBPcap pseudoheader*).
+2. **Identifikasi Vendor ID dan Product ID**:
+   - Pada proses enumerasi USB awal, host meminta Device Descriptor (`GET DESCRIPTOR Response DEVICE`).
+   - Pada frame respons descriptor, field `idVendor` dan `idProduct` terbaca secara gamblang:
+     - **Vendor ID**: `0x046d` (Logitech, Inc.)
+     - **Product ID**: `0xc31c` (Keyboard K120)
+3. **Identifikasi Alamat Nomor Device USB**:
+   - Setelah enumerasi dan konfigurasi `SET ADDRESS`, host mengalokasikan Device Address spesifik untuk keyboard tersebut.
+   - Pada header USB URB, field `Device address` tercatat bernilai **`7`** (`Source: 2.7.1`).
+4. **Ekstraksi dan Dekode Keystroke dari Data HID**:
+   - Diterapkan filter display untuk memilah paket interupsi penekanan tombol:
+     ```text
+     usb.transfer_type == 0x01 && usb.src == "2.7.1"
+     ```
+   - Setiap kali tombol ditekan, perangkat HID mengirimkan 8-byte input report pada `Leftover Capture Data` (misalnya `0000150000000000`):
+     - **Byte 0 (Modifier Keys)**: `0x02` atau `0x20` mengindikasikan tombol Shift (huruf kapital).
+     - **Byte 2 (Keycode HID)**: Kode tombol sesuai standar USB HID Usage Table (contoh: `0x1a` = W/w, `0x0c` = I/i, `0x15` = R/r, `0x08` = E/e, `0x07` = D/d, `0x2d` = `_`, `0x24` = 7, dst.).
+   - Menerjemahkan seluruh urutan scancode keycode HID menghasilkan pesan rahasia:
+     $$\text{Wired\_Protocol\_7\_is\_alive\_2026}$$
+5. **Validasi pada Socket Server**:
+   Hubungkan terminal ke server validasi:
+   ```bash
+   nc 10.4.89.246 3402
+   ```
+   Masukkan Vendor ID (`0x046d`), Product ID (`0xc31c`), Device address (`7`), dan pesan terdekode (`Wired_Protocol_7_is_alive_2026`).
+
+---
+
+### Bukti dan Hasil
+
+1. **Validasi Socket Server & Flag Soal 15**:
+   ![Validasi Flag Soal 15](images/soal-15/terminal-flag-nc.png)
+   *Socket server mengonfirmasi seluruh parameter perangkat USB dan memberikan flag:*
+   $$\text{KOMJAR26\{USB\_K3ystr0k3\_PRJiguc0tWcn5puODP0lUTZkl\}}$$
+
+2. **Identifikasi USB Device Descriptor (Vendor & Product ID)**:
+   ![USB Descriptor](images/soal-15/wireshark-usb-descriptor.png)
+   *Deskriptor perangkat memperlihatkan manufaktur `Logitech, Inc.` dengan `idVendor: 0x046d` dan `idProduct: 0xc31c`.*
+
+3. **Alamat Nomor Device USB pada Header URB**:
+   ![USB Device Address](images/soal-15/wireshark-usb-device-address.png)
+   *Field `Device address: 7` teridentifikasi pada struktur USB Request Block (URB).*
+
+4. **Filter dan Paket USB Keystroke Interrupt**:
+   ![USB Packets Filter](images/soal-15/wireshark-usb-filter.png)
+   *Filter `usb.transfer_type == 0x01 && usb.src == "2.7.1"` menampilkan aliran paket interrupt transfer dari keyboard.*
+
+5. **Payload Leftover Capture Data Keystroke**:
+   ![HID Leftover Data](images/soal-15/wireshark-hid-leftover-data.png)
+   *Data byte HID scancode `0000150000000000` merepresentasikan sinyal penekanan tombol keyboard yang kemudian didekode.*
+
+6. **Daftar Aliran Paket Keystroke Lengkap**:
+   ![USB Packets List 1](images/soal-15/wireshark-usb-packets-1.png)
+   ![USB Packets List 2](images/soal-15/wireshark-usb-packets-2.png)
+   *Urutan transmisi interupsi USB yang secara berkesinambungan mengirimkan penekanan tombol pesan rahasia.*
+
+---
+
+## Soal 16: Analisis Lalu Lintas Eksfiltrasi Malware via FTP
+
+### Deskripsi Masalah
+
+Eiri meletakkan file malware di server. Dari berkas tangkapan paket `wired_ftp_theft.pcap`, dilakukan analisis lalu lintas FTP untuk mengidentifikasi alamat IP server FTP penyerang, banner software FTP yang digunakan, kredensial login penyerang, serta ukuran (*size in bytes*) dari file malware `knights_payload.exe` yang diunduh. Validasi temuan disubmit pada socket server:
+$$\text{nc } [IP\_Group] \text{ 3403}$$
+
+---
+
+### Langkah Pengerjaan & Analisis
+
+1. **Membuka Berkas Pcap di Wireshark**:
+   - Berkas `wired_ftp_theft.pcap` dibuka di Wireshark.
+   - Filter display `ftp` diterapkan untuk memfilter seluruh lalu lintas *control channel* (TCP port 21).
+2. **Menganalisis Aliran Sesi FTP via Follow TCP Stream**:
+   - Klik kanan pada salah satu paket FTP lalu pilih **Follow -> TCP Stream**.
+   - Seluruh percakapan protokol FTP terbaca secara teks polos (*plaintext*):
+     - **Banner Server**: Server menyambut koneksi dengan banner `220 Welcome to Wired FTP Server (vsftpd 3.0.5)`.
+     - **Autentikasi Pengguna**:
+       $$\text{USER knights\_agent}$$
+       $$\text{PASS N4v1\_s3cur3\_2026}$$
+       $$\text{230 Login successful.}$$
+     - **Pengecekan Ukuran File Malware**: Klien mengirimkan perintah `SIZE knights_payload.exe` yang dibalas server dengan `213 524288` (berukuran tepat **524288** byte).
+     - **Pengunduhan Berkas**: Klien beralih ke mode pasif (`PASV`) dan mengunduh berkas dengan perintah `RETR knights_payload.exe`.
+3. **Identifikasi Alamat IP Jaringan**:
+   - **IP Server FTP Penyerang**: `198.51.100.7` (penyedia file malware)
+   - **IP Klien Pengunduh**: `10.7.3.50`
+4. **Validasi pada Socket Server**:
+   Hubungkan terminal ke server validasi:
+   ```bash
+   nc 10.4.89.246 3403
+   ```
+   Masukkan IP server (`198.51.100.7`), banner (`Wired FTP Server (vsftpd 3.0.5)`), kredensial (`knights_agent:N4v1_s3cur3_2026`), dan ukuran file (`524288`).
+
+---
+
+### Bukti dan Hasil
+
+1. **Validasi Socket Server & Flag Soal 16**:
+   ![Validasi Flag Soal 16](images/soal-16/terminal-flag-nc.png)
+   *Socket server memvalidasi seluruh parameter eksfiltrasi FTP dan menerbitkan flag:*
+   $$\text{KOMJAR26\{FTP\_Th3ft\_new132kNdhh40hiLyj6K6VeXU\}}$$
+
+2. **Follow TCP Stream Sesi Kontrol FTP**:
+   ![FTP Stream](images/soal-16/wireshark-ftp-stream.png)
+   *Rekonstruksi sesi kontrol FTP menampilkan kredensial login, banner vsftpd 3.0.5, dan alur eksekusi transfer file.*
+
+3. **Kueri Ukuran File Malware (SIZE Command)**:
+   ![FTP Size Query](images/soal-16/wireshark-ftp-size.png)
+   *Perintah `SIZE knights_payload.exe` membuktikan ukuran payload malware adalah tepat 524288 byte.*
+
+4. **Permintaan Pengunduhan Berkas (RETR Command)**:
+   ![FTP RETR Request](images/soal-16/wireshark-ftp-retr.png)
+   *Daftar paket membuktikan permintaan unduhan file menuju server FTP `198.51.100.7`.*
+
+---
+
+## Soal 17: Investigasi Pengunduhan Malware HTTP Command & Control (C2)
+
+### Deskripsi Masalah
+
+Alice membuat halaman web di node miliknya. Eiri memanfaatkan celah keamanan untuk mengunduh payload berbahaya ke sistem Alice. Berkas tangkapan paket `wired_http_c2.pcap` dianalisis untuk mengidentifikasi nama domain (*Host*) tempat malware diunduh, alamat IP server penyerang, nama file executable malware yang diunduh, serta kode status HTTP yang dikembalikan. Validasi temuan disubmit pada socket server:
+$$\text{nc } [IP\_Group] \text{ 3404}$$
+
+---
+
+### Langkah Pengerjaan & Analisis
+
+1. **Membuka Berkas Pcap di Wireshark**:
+   - Berkas `wired_http_c2.pcap` dibuka di Wireshark.
+   - Filter display `http` diterapkan untuk mengisolasi transaksi Hypertext Transfer Protocol.
+2. **Menemukan Permintaan Unduhan Payload**:
+   - Pada paket No. 30, terdeteksi request `GET /navi_agent.exe HTTP/1.1` dari IP internal `10.7.1.50` ke IP eksternal `203.0.113.42`.
+3. **Menganalisis Header dan Payload via Follow HTTP Stream**:
+   - Klik kanan paket No. 30 -> **Follow -> HTTP Stream**.
+   - **Request**:
+     - Request URI: `/navi_agent.exe`
+     - Host: **`wired-update.net`**
+     - User-Agent: `Mozilla/5.0 (Windows NT 10.0; Win64; x64)`
+   - **Response**:
+     - Status Line: `HTTP/1.1 200 OK` (Status code: **`200`**)
+     - Server: `nginx/1.24.0`
+     - Content-Disposition: `attachment; filename="navi_agent.exe"`
+     - Magic Bytes Binary: Teks header executable Windows `MZ` (*"This program cannot be run in DOS mode."*), membuktikan berkas tersebut adalah executable PE biner.
+4. **Parameter Temuan**:
+   - **Domain (Host)**: `wired-update.net`
+   - **IP Server Penyerang**: `203.0.113.42`
+   - **Nama File Malware**: `navi_agent.exe`
+   - **HTTP Status Code**: `200`
+5. **Validasi pada Socket Server**:
+   Hubungkan terminal ke server validasi:
+   ```bash
+   nc 10.4.89.246 3404
+   ```
+   Masukkan parameter temuan di atas hingga mendapatkan flag.
+
+---
+
+### Bukti dan Hasil
+
+1. **Validasi Socket Server & Flag Soal 17**:
+   ![Validasi Flag Soal 17](images/soal-17/terminal-flag-nc.png)
+   *Socket server memvalidasi keempat informasi pengunduhan malware HTTP C2 dan mengembalikan flag:*
+   $$\text{KOMJAR26\{Navi\_C2\_D0wnl04d\_JbU3w6ZZi3qiRrPbaJ57tZdYQ\}}$$
+
+2. **Follow HTTP Stream Pengunduhan Malware**:
+   ![HTTP Stream C2](images/soal-17/wireshark-http-c2-stream.png)
+   *Stream HTTP memperlihatkan host target `wired-update.net`, file `navi_agent.exe`, status respons `200 OK`, dan stub DOS biner executable.*
+
+3. **Daftar Paket IP dan Permintaan HTTP GET**:
+   ![HTTP Packet List C2](images/soal-17/wireshark-http-c2-ip.png)
+   *Paket No. 30 mengonfirmasi bahwa klien `10.7.1.50` mengunduh payload dari IP server penyerang `203.0.113.42`.*
+
+---
+
+## Soal 18: Analisis Pergerakan Lateral Malware via Protokol SMB
+
+### Deskripsi Masalah
+
+Eiri mengubah taktik penyerangan dengan menanamkan file malware menggunakan protokol file sharing SMB. Berkas tangkapan paket `wired_smb_transfer.pcapng` dianalisis untuk mengidentifikasi nama protokol jaringan yang dieksploitasi, IP pengirim dan penerima, folder tujuan penyimpanan malware pada sistem korban, serta nama file executable malware yang ditransfer. Validasi temuan disubmit pada socket server:
+$$\text{nc } [IP\_Group] \text{ 3405}$$
+
+---
+
+### Langkah Pengerjaan & Analisis
+
+1. **Membuka Berkas Pcap di Wireshark**:
+   - Berkas `wired_smb_transfer.pcapng` dibuka pada Wireshark.
+   - Filter display `smb2` diterapkan untuk menyaring lalu lintas Server Message Block versi 2.
+2. **Identifikasi Dialek Protokol dan Perangkat Terlibat**:
+   - Protokol file sharing yang digunakan adalah **`SMB2`**.
+   - **Host Pengirim (Attacker Delivering Malware)**: `10.7.3.100` (port sumber dinamis 49152).
+   - **Host Penerima / Korban (Victim Receiving Malware)**: `10.7.1.50` (port tujuan standar SMB 445).
+3. **Menganalisis Tree Connect dan File Creation**:
+   - Pada Frame 14, terjadi negosiasi `Tree Connect Request` menuju shared folder administratif:
+     $$\text{Tree: } \backslash\backslash 10.7.1.50\backslash\text{ADMIN\$}$$
+     Target folder share yang dituju adalah **`ADMIN$`**.
+   - Pada Frame 16 (Paket No. 230), pengirim mengirimkan instruksi `Create Request`:
+     $$\text{File: System32}\backslash\text{wired\_trojan\_payload.exe}$$
+   - Pada Frame 132, file ditutup setelah data biner malware selesai ditulis (`Close Request`).
+4. **Parameter Temuan**:
+   - **Nama Protokol**: `SMB2`
+   - **IP Pengirim (Source Host)**: `10.7.3.100`
+   - **IP Penerima (Victim Host)**: `10.7.1.50`
+   - **Folder Tujuan (Target Share)**: `ADMIN$`
+   - **Nama File Executable Malware**: `wired_trojan_payload.exe`
+5. **Validasi pada Socket Server**:
+   Hubungkan terminal ke server validasi:
+   ```bash
+   nc 10.4.89.246 3405
+   ```
+   Masukkan kelima parameter yang diminta hingga flag tercetak.
+
+---
+
+### Bukti dan Hasil
+
+1. **Validasi Socket Server & Flag Soal 18**:
+   ![Validasi Flag Soal 18](images/soal-18/terminal-flag-nc.png)
+   *Socket server memvalidasi data pergerakan lateral SMB dan mengembalikan flag:*
+   $$\text{KOMJAR26\{SMB\_Tr4nsf3r\_4ln6wNXcJUhAwQSUnxwaPIUVa\}}$$
+
+2. **Identifikasi Protokol SMB2 dan Create Request**:
+   ![SMB2 Create Request](images/soal-18/wireshark-smb-protocol.png)
+   *Wireshark menampilkan protokol `SMB2` dengan perintah `Create Request` pada file `System32\wired_trojan_payload.exe`.*
+
+3. **Alamat IP Pengirim dan Penerima**:
+   ![SMB2 IP Endpoints](images/soal-18/wireshark-smb-ip.png)
+   *Paket No. 16 membuktikan paket berasal dari `10.7.3.100` menuju korban `10.7.1.50`.*
+
+4. **Target Administrative Share `ADMIN$`**:
+   ![SMB2 Tree Connect](images/soal-18/wireshark-smb-tree.png)
+   *Struktur `Tree Id` membuktikan pengaksesan direktori share `\\10.7.1.50\ADMIN$`.*
+
+5. **Penutupan File Malware (Close Request)**:
+   ![SMB2 Close Request](images/soal-18/wireshark-smb-filename.png)
+   *Paket No. 132 mengonfirmasi penyelesaian transfer berkas `wired_trojan_payload.exe`.*
+
+---
+
+## Soal 19: Investigasi Email Pemerasan dan Ancaman via Protokol SMTP
+
+### Deskripsi Masalah
+
+Eiri meneror jaringan dengan mengirimkan email pemerasan melalui protokol SMTP tanpa enkripsi. Dari berkas tangkapan paket `wired_smtp_threat.pcap`, dilakukan analisis stream TCP terkait untuk mengidentifikasi alamat email korban yang ditargetkan, password korban yang diklaim bocor oleh penyerang, jenis malware yang diinfeksikan, batas waktu (dalam hari) yang diberikan untuk pembayaran tebusan, serta `MailClientID` yang tercantum pada pesan. Validasi temuan disubmit pada socket server:
+$$\text{nc } [IP\_Group] \text{ 3406}$$
+
+---
+
+### Langkah Pengerjaan & Analisis
+
+1. **Membuka Berkas Pcap di Wireshark**:
+   - Berkas `wired_smtp_threat.pcap` dibuka di Wireshark.
+   - Filter display `smtp` diterapkan untuk memfilter lalu lintas pengiriman email pada port 25.
+2. **Menemukan Paket Email Ancaman**:
+   - Pada Paket No. 86, terdeteksi pertukaran email dari IP pengirim `185.234.72.19` ke server penerima `203.0.113.100` dengan subjek:
+     `URGENT: Your Wired account has been compromised`
+3. **Membaca Isi Pesan via Follow TCP Stream**:
+   - Klik kanan paket No. 86 -> **Follow -> TCP Stream**.
+   - Karena transaksi menggunakan SMTP murni tanpa TLS (*STARTTLS*), seluruh isi email terbaca dalam format teks terbuka:
+     - **Pengirim**: `attacker@darkwired.net`
+     - **Penerima / Korban**: `victim@protocol7.co.jp`
+     - **Klaim Password Bocor**:
+       *“I have compromised your system through Protocol 7. I know that: pr0tocol_7_user - is your password!”*
+     - **Jenis Malware**:
+       *“Your computer was infected with my private ransomware.”*
+     - **Batas Waktu Pembayaran**:
+       *“I give you 72 hours (3 days) to get the bitcoins and pay.”*
+     - **Alamat Tebusan Bitcoin**: `bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh`
+     - **Identifier Pesan**:
+       `MailClientID: 7719980706`
+4. **Parameter Temuan**:
+   - **Alamat Email Korban**: `victim@protocol7.co.jp`
+   - **Password Korban yang Bocor**: `pr0tocol_7_user`
+   - **Jenis Malware**: `ransomware`
+   - **Batas Waktu (Hari)**: `3`
+   - **MailClientID**: `7719980706`
+5. **Validasi pada Socket Server**:
+   Hubungkan terminal ke server validasi:
+   ```bash
+   nc 10.4.89.246 3406
+   ```
+   Masukkan kelima jawaban yang diperoleh untuk memperoleh flag.
+
+---
+
+### Bukti dan Hasil
+
+1. **Validasi Socket Server & Flag Soal 19**:
+   ![Validasi Flag Soal 19](images/soal-19/terminal-flag-nc.png)
+   *Socket server memvalidasi data investigasi ancaman email SMTP dan memberikan flag:*
+   $$\text{KOMJAR26\{SMTP\_Ext0rt10n\_l07HJyoJSzu01eFY8bWibgCIs\}}$$
+
+2. **Daftar Paket SMTP Pengiriman Email**:
+   ![Daftar Paket SMTP](images/soal-19/wireshark-smtp-ip.png)
+   *Tangkapan paket memperlihatkan pengiriman pesan SMTP dari IP penyerang `185.234.72.19` ke mail server `203.0.113.100`.*
+
+3. **Follow TCP Stream Pesan Email Pemerasan**:
+   ![Follow TCP Stream SMTP](images/soal-19/wireshark-smtp-stream.png)
+   *Rekonstruksi seluruh stream TCP memperlihatkan teks pesan pemerasan secara utuh termasuk alamat email korban, password yang bocor, jenis malware, batas waktu 3 hari, dan MailClientID.*
+
+---
+
+## Soal 20: Dekripsi Sesi Terenkripsi TLS Menggunakan Keylog File
+
+### Deskripsi Masalah
+
+Untuk rencana pamungkasnya, Eiri menyembunyikan komunikasi malware di balik saluran terenkripsi TLS. Namun Alice telah menyediakan berkas keylog untuk mendekripsi lalu lintas data tersebut. Dari berkas tangkapan paket `wired_tls_decrypt.pcapng` bersama berkas kunci `keyslogfile.txt`, dilakukan analisis untuk mengidentifikasi versi protokol TLS yang dinegosiasikan, nama domain (*SNI*) yang diakses, alamat IP server HTTPS penyerang, User-Agent yang digunakan, serta HTTP request method dan path yang tersembunyi di dalam sesi dekripsi. Validasi temuan disubmit pada socket server:
+$$\text{nc } [IP\_Group] \text{ 3407}$$
+
+---
+
+### Langkah Pengerjaan & Analisis
+
+1. **Konfigurasi Dekripsi TLS pada Wireshark**:
+   - Di Wireshark, buka menu **Edit -> Preferences** (shortcut `Ctrl + Shift + P`).
+   - Masuk ke tab **Protocols -> TLS**.
+   - Pada kolom **(Pre)-Master-Secret log filename**, klik tombol **Browse** lalu arahkan ke berkas `keyslogfile.txt`.
+   - Klik **OK**. Wireshark secara otomatis mencocokkan Client Random pada handshake dengan secret key untuk mendekripsi lapisan TLS.
+2. **Analisis Handshake TLS**:
+   - **Versi Protokol TLS**: Terbaca pada kolom protokol Wireshark dan TLS Record Layer sebagai **`TLSv1.2`**.
+   - **Alamat IP Server HTTPS**: Paket ditransmisikan antara klien `10.9.0.2` dan server tujuan **`93.184.216.34`**.
+   - **Nama Domain (SNI)**: Buka paket `Client Hello` -> ekstensi `server_name` -> terbaca **`example.com`**.
+3. **Menganalisis Payload HTTP yang Telah Didekripsi**:
+   - Setelah kunci dimasukkan, payload terenkripsi didekripsi secara transparan sehingga memunculkan tab **Decrypted TLS** dan protokol layer **HTTP**.
+   - Klik kanan pada paket HTTP yang didekripsi -> **Follow -> HTTP Stream**:
+     - Request Line: `HEAD / HTTP/1.1` (Method: **`HEAD`**, Path: **`/`**)
+     - Header Host: `example.com`
+     - Header User-Agent: **`curl/7.62.0`**
+     - Response Status: `HTTP/1.1 200 OK`
+4. **Parameter Temuan**:
+   - **Versi Protokol TLS**: `TLSv1.2`
+   - **Nama Domain (SNI / Host)**: `example.com`
+   - **IP Server HTTPS**: `93.184.216.34`
+   - **User-Agent**: `curl/7.62.0`
+   - **HTTP Request Method & Path**: `HEAD /` (atau `HEAD`)
+5. **Validasi pada Socket Server**:
+   Hubungkan terminal ke server validasi:
+   ```bash
+   nc 10.4.89.246 3407
+   ```
+   Masukkan kelima jawaban yang diperoleh hingga flag terakhir diterbitkan.
+
+---
+
+### Bukti dan Hasil
+
+1. **Validasi Socket Server & Flag Soal 20**:
+   ![Validasi Flag Soal 20](images/soal-20/terminal-flag-nc.png)
+   *Socket server memvalidasi kelima jawaban hasil dekripsi TLS dan memberikan flag:*
+   $$\text{KOMJAR26\{TLS\_D3crypt\_rTsIXtXxcGbPIio8i83xk2J95\}}$$
+
+2. **Identifikasi Versi Protokol TLSv1.2 dan IP Server**:
+   ![TLS Version and IP](images/soal-20/wireshark-tls-version-ip.png)
+   *Daftar paket membuktikan negosiasi protokol `TLSv1.2` dengan IP server tujuan `93.184.216.34`.*
+
+3. **Identifikasi Server Name Indication (SNI)**:
+   ![TLS SNI](images/soal-20/wireshark-tls-sni.png)
+   *Paket Client Hello membuktikan domain target yang diminta klien adalah `example.com`.*
+
+4. **Follow HTTP Stream Hasil Dekripsi TLS**:
+   ![Decrypted HTTP Stream](images/soal-20/wireshark-tls-decrypted.png)
+   *Sesi yang berhasil didekripsi memperlihatkan metode `HEAD / HTTP/1.1` dan User-Agent `curl/7.62.0`.*
