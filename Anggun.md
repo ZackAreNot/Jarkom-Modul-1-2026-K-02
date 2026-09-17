@@ -35,7 +35,7 @@
    - Disini melihat device addressnya, yang awalnya 0 berubah menjadi 7
    ![alt text](image-5.png)
 
-   - melihat id
+   - Melihat id
    ![alt text](image-11.png)
 
 ### Langkah Pengerjaan
@@ -58,7 +58,8 @@
  - Menemukan FTP server software banner, user, password, 
  ![alt text](image-13.png)
 - Menemukan size file
-![alt text](image-14.png)
+
+   ![alt text](image-14.png)
 
 ### Langkah Pengerjaan
 1. **Import file**
@@ -108,3 +109,55 @@
 1. **Import file**
 2. **Cari berdasarkan yang diminta dalam terminal**
 3. **Ada packet yang harus di follow -> TCP Stream**
+
+## Soal 19
+
+### Soal
+> Eiri meneror jaringan dengan mengirimkan email pemerasan melalui protokol SMTP tanpa enkripsi. Analisis file capture wired_smtp_threat.pcap pada stream TCP terkait, identifikasi alamat email korban yang ditargetkan, password korban yang diklaim bocor oleh penyerang, jenis malware yang diinfeksikan, batas waktu (dalam hari) yang diberikan, serta MailClientID yang tercantum pada pesan. Validasi temuan kalian pada socket server:
+	(link file) nc [IP_Group] 3406
+
+
+### Bukti dan Hasil
+![alt text](image-26.png)
+
+ - Menemukan stream ancaman berisikan password, email penyerang, tipe malware,kapan terakhir bayar, dan MailClientID
+![alt text](image-24.png)
+![alt text](image-25.png)
+
+ 
+
+### Langkah Pengerjaan
+1. **Import file**
+2. **Cari berdasarkan yang diminta dalam terminal**
+3. **Ada packet yang harus di follow -> TCP Stream**
+
+## Soal 20
+
+### Soal
+> Untuk rencana pamungkasnya, Eiri menyembunyikan komunikasi malware di balik saluran terenkripsi TLS. Namun Alice telah menyediakan file keylog untuk mendekripsi lalu lintas data tersebut. Analisis file capture wired_tls_decrypt.pcapng bersama keyslogfile.txt untuk mengidentifikasi versi protokol TLS yang dinegosiasikan, nama domain (SNI) yang diakses, alamat IP server HTTPS penyerang, User-Agent yang digunakan, serta HTTP request method dan path yang tersembunyi di dalam sesi dekripsi. Validasi temuan kalian pada socket server: (link file) nc [IP_Group] 3407
+
+
+
+### Bukti dan Hasil
+![alt text](image-29.png)
+
+   - Protokol dan IP
+   ![alt text](image-27.png)
+   - Domain
+
+      ![alt text](image-28.png)
+   - User agents yang terdeskripsi
+      ![alt text](image-30.png)
+
+ 
+
+### Langkah Pengerjaan
+1. **Import file**
+2. **Cari berdasarkan yang diminta dalam terminal**
+3. **Untuk mencari user agents dan method kita harus mendeskripsi sebuah keylog**
+   - Caranya dengan menekan pilihan edit
+   - Lalu tekan preference
+   - Tekan expand protocols
+   - Pilih "TLS"
+   - Masukkan keylog
+   - Buka di menu utama
