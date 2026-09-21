@@ -13,6 +13,8 @@
 
 ## Soal 1
 
+>Dikerjakan Oleh Zaki
+
 ### Soal
 > Untuk mempersiapkan pembangunan The Wired, Lain yang berperan sebagai Router membuat tiga Switch/Gateway: Switch 1 menuju dua Entitas yaitu Alice dan Mika, Switch 2 menuju Chisa, sedangkan Switch 3 menuju Knights dan Eiri. Kelima Entitas tersebut dikonfigurasi sebagai Client di GNS3. [GUNAKAN PREFIX IP MASING-MASING KELOMPOK]
 
@@ -127,6 +129,8 @@
 
 ## Soal 2
 
+>Dikerjakan Oleh Zaki
+
 ### Soal
 > Karena menurut Lain pada saat itu The Wired masih terisolasi dari dunia luar, konfigurasikan router Lain agar dapat tersambung langsung ke jaringan internet publik melalui NAT/DHCP pada interface eth0.
 
@@ -158,6 +162,8 @@
 ---
 
 ## Soal 3
+
+>Dikerjakan Oleh Zaki
 
 ### Soal
 > Setelah router Lain terhubung ke internet, pastikan seluruh Entitas (Client) di bawah Switch 1, Switch 2, dan Switch 3 dapat saling terhubung dan berkomunikasi satu sama lain melalui konfigurasi routing.
@@ -196,6 +202,8 @@
 ---
 
 ## Soal 4
+
+>Dikerjakan Oleh Zaki
 
 ### Soal
 > Lain ingin agar setiap Entitas (Client) memiliki kemandirian di The Wired. Konfigurasikan firewall/iptables (NAT Masquerade) dan DNS resolver agar setiap Client dapat terhubung ke internet secara mandiri (dapat melakukan ping ke 8.8.8.8 dan membuka domain web google.com).
@@ -236,6 +244,8 @@
 
 ## Soal 5
 
+>Dikerjakan Oleh Zaki
+
 ### Soal
 > Eiri tetap berupaya menanamkan kekacauan ke dalam jaringan. Untuk mengantisipasi restart tiba-tiba, pastikan seluruh konfigurasi jaringan tidak hilang saat semua node di-restart. Buat script verifikasi di `/root/cek_status.sh` pada router Lain yang menampilkan ringkasan interface (`ip -br a`) dan status tabel NAT (`iptables -t nat -L -v -n`) setelah reboot.
 
@@ -275,6 +285,8 @@
 
 ## Soal 6
 
+>Dikerjakan Oleh Zaki
+
 ### Soal
 > Mika mencurigai adanya anomali traffic pada segmen jaringannya. Jalankan generator traffic berikut pada node Mika, lalu lakukan packet sniffing menggunakan Wireshark pada interface node Mika. Terapkan display filter khusus untuk menyaring paket yang berprotokol DNS atau ICMP. Tunjukkan screenshot hasil filter beserta ringkasan paket yang lolos.
 
@@ -305,6 +317,8 @@
 ---
 
 ## Soal 7
+
+>Dikerjakan Oleh Zaki
 
 ### Soal
 > Chisa memutuskan mendirikan FTP Server pada node miliknya dengan shared folder di `/var/wired/data`. Terapkan kebijakan akses: user `alice` (hak akses read & write), user `mika` (dibatasi read-only), dan user `eiri` (dibatasi tanpa izin akses / blacklist). Buktikan konfigurasi dengan membuat file `signal_alice.txt` dari user alice, dan buktikan penolakan akses saat user eiri mencoba login.
@@ -426,6 +440,8 @@
 
 ## Soal 8
 
+>Dikerjakan Oleh Zaki
+
 ### Soal
 > Kelompok rahasia Knights perlu mengirimkan dokumen laporan intelijen ke FTP Server Chisa. Lakukan koneksi FTP client dari node Knights ke FTP Server Chisa menggunakan akun alice. Upload file berikut (`knights_report.txt`). Analisis sesi Wireshark dan sebutkan: perintah FTP untuk upload (STOR), kode status sukses server (226), dan port data TCP yang dinegosiasikan pada mode PASV.
 
@@ -534,6 +550,8 @@
 
 ## Soal 9
 
+>Dikerjakan Oleh Zaki
+
 ### Soal
 > Mika mengakses dokumen Protokol Tujuh di (link file) dari FTP Server Chisa. Dari node Mika, unduh file tersebut menggunakan akun mika. Setelah itu, buktikan pembatasan read-only dengan mencoba mengunggah file baru dari akun mika, dan tunjukkan pesan error respon server (error 550 Permission denied) saat mika mencoba melakukan upload.
 
@@ -631,6 +649,8 @@
 
 ## Soal 10
 
+>Dikerjakan Oleh Zaki
+
 ### Soal
 > Knights melancarkan uji ketahanan koneksi ke server Chisa untuk menguji latensi jaringan The Wired. Kirimkan paket ping dari node Knights ke node Chisa dengan payload khusus 128 bytes dan interval 0.3 detik sebanyak 77 paket (`ping -c 77 -s 128 -i 0.3 <IP_Chisa>`). Buka Wireshark, catat nilai ICMP Type dan Code untuk Echo Request vs Echo Reply, serta analisis packet loss dan RTT (min/avg/max).
 
@@ -691,6 +711,8 @@
 ---
 
 ## Soal 11
+
+>Dikerjakan Oleh Zaki
 
 ### Soal
 > Buktikan kelemahan protokol Telnet dengan membuat akun `phantom_user` dan password `wired_ghost` pada layanan `telnetd` di node Chisa. Lakukan login Telnet dari node Eiri ke node Chisa dan tangkap sesi menggunakan Wireshark. Tunjukkan kredensial plain text melalui fitur Follow TCP Stream, serta jelaskan mengapa setiap karakter terkirim dalam paket TCP terpisah.
@@ -761,6 +783,8 @@
 
 ## Soal 12
 
+>Dikerjakan Oleh Zaki
+
 ### Soal
 > Alice mencurigai Knights menjalankan beberapa layanan rahasia di node-nya. Lakukan pemindaian port dari node Alice ke node Knights menggunakan Netcat (nc) untuk memeriksa port 22 (SSH) dan 80 (HTTP) dalam keadaan terbuka, serta port rahasia 7777 dalam keadaan tertutup. Analisis di Wireshark perbedaan TCP Flag yang dikembalikan antara port terbuka (SYN-ACK) dengan port tertutup (RST-ACK).
 
@@ -828,6 +852,8 @@
 ---
 
 ## Soal 13: Konfigurasi Remote Login Aman via SSH Key-Based Authentication
+
+>Dikerjakan Oleh Zaki
 
 ### Deskripsi Masalah
 
@@ -940,6 +966,8 @@ su - mika_admin -c "ssh -o StrictHostKeyChecking=no mika_admin@192.212.3.2"
 
 ## Soal 14: Analisis Serangan Brute Force Form Login Web via HTTP
 
+>Dikerjakan Oleh Anggun
+
 ### Deskripsi Masalah
 
 Setelah gagal mengakses FTP, Eiri melancarkan serangan brute-force terhadap form login web Alice. Analisis berkas tangkapan paket `wired_bruteforce.pcapng` dilakukan untuk mengidentifikasi alamat IP penyerang, target IP beserta port yang diserang, password user `lain_admin` yang berhasil ditembus, serta web server software dan versi yang dilaporkan pada response header. Validasi temuan kemudian disubmit pada socket server:
@@ -995,6 +1023,8 @@ $$\text{nc } [IP\_Group] \text{ 3401}$$
 ---
 
 ## Soal 15: Rekonstruksi Keystroke Hardware Malicious USB HID
+
+>Dikerjakan Oleh Anggun
 
 ### Deskripsi Masalah
 
@@ -1066,6 +1096,8 @@ $$\text{nc } [IP\_Group] \text{ 3402}$$
 
 ## Soal 16: Analisis Lalu Lintas Eksfiltrasi Malware via FTP
 
+>Dikerjakan Oleh Anggun
+
 ### Deskripsi Masalah
 
 Eiri meletakkan file malware di server. Dari berkas tangkapan paket `wired_ftp_theft.pcap`, dilakukan analisis lalu lintas FTP untuk mengidentifikasi alamat IP server FTP penyerang, banner software FTP yang digunakan, kredensial login penyerang, serta ukuran (*size in bytes*) dari file malware `knights_payload.exe` yang diunduh. Validasi temuan disubmit pada socket server:
@@ -1122,6 +1154,8 @@ $$\text{nc } [IP\_Group] \text{ 3403}$$
 ---
 
 ## Soal 17: Investigasi Pengunduhan Malware HTTP Command & Control (C2)
+
+>Dikerjakan Oleh Anggun
 
 ### Deskripsi Masalah
 
@@ -1180,6 +1214,8 @@ $$\text{nc } [IP\_Group] \text{ 3404}$$
 ---
 
 ## Soal 18: Analisis Pergerakan Lateral Malware via Protokol SMB
+
+>Dikerjakan Oleh Anggun
 
 ### Deskripsi Masalah
 
@@ -1246,6 +1282,8 @@ $$\text{nc } [IP\_Group] \text{ 3405}$$
 
 ## Soal 19: Investigasi Email Pemerasan dan Ancaman via Protokol SMTP
 
+>Dikerjakan Oleh Anggun
+
 ### Deskripsi Masalah
 
 Eiri meneror jaringan dengan mengirimkan email pemerasan melalui protokol SMTP tanpa enkripsi. Dari berkas tangkapan paket `wired_smtp_threat.pcap`, dilakukan analisis stream TCP terkait untuk mengidentifikasi alamat email korban yang ditargetkan, password korban yang diklaim bocor oleh penyerang, jenis malware yang diinfeksikan, batas waktu (dalam hari) yang diberikan untuk pembayaran tebusan, serta `MailClientID` yang tercantum pada pesan. Validasi temuan disubmit pada socket server:
@@ -1308,6 +1346,8 @@ $$\text{nc } [IP\_Group] \text{ 3406}$$
 ---
 
 ## Soal 20: Dekripsi Sesi Terenkripsi TLS Menggunakan Keylog File
+
+>Dikerjakan Oleh Anggun
 
 ### Deskripsi Masalah
 
