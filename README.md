@@ -5,6 +5,10 @@
 **Prefix IP Kelompok:** `192.212.x.x`  
 **Tema:** *Serial Experiments Lain*  
 
+>Naila Anggun Eka Rizqy | 5027251122
+
+>Maulana Zaki Putra Zakaria | 5027251009
+
 ---
 
 ## Soal 1
@@ -1363,3 +1367,5 @@ $$\text{nc } [IP\_Group] \text{ 3407}$$
 4. **Follow HTTP Stream Hasil Dekripsi TLS**:
    ![Decrypted HTTP Stream](images/soal-20/wireshark-tls-decrypted.png)
    *Sesi yang berhasil didekripsi memperlihatkan metode `HEAD / HTTP/1.1` dan User-Agent `curl/7.62.0`.*
+
+
